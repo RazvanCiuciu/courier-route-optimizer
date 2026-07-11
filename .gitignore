@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Python (solver) ---
+solver/.venv/
+__pycache__/
+*.pyc
+
+# --- IDE / OS ---
+.vscode/
+.DS_Store
+Thumbs.db
