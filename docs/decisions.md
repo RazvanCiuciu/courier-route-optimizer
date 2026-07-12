@@ -10,7 +10,7 @@ Format: ce am decis, ce sau de ce am respins.
 
 
 
-Un client fara *timeWindows* poate primi oricand, nu niciodata. Alternativa (gol = imposibil de vizitat) ar bloca livrarea. In solver: se traduce in fereastra explicita: 
+Un client fara *timeWindows* poate primi oricand, nu niciodata. Alternativa (gol = imposibil de vizitat) ar bloca livrarea. In solver: se traduce in fereastra explicita:
 
 inceput-program -> sfarsit program
 
@@ -18,7 +18,7 @@ inceput-program -> sfarsit program
 
 
 
-**#2. Granite inclusive** 
+**#2. Granite inclusive**
 
 
 
@@ -57,4 +57,22 @@ Order reprezinta fapte imuabile, in timp ce statusul reprezinta o stare ce evolu
 
 
 Comporament rezultat din *Math.min()* pe array gol. *sortByEarliestWindow()* o sa imi returneze un array cu comenzile ordonate in functie de start, cu toate comenzile care pot fii duse oricand la final.
+
+
+
+**#7 Python 3.13 pentru solver**
+
+
+
+Intervalul suportat de OR-Tools : (3.9-3.13). Evitat 3.14, instalat din store, fara wheels OR-Tools garantate.
+
+
+
+**#8 Evaluator separat pentru solver**
+
+
+
+compute\_route(order, request) evaluaza orice permutare. Ordinea este produsa de endpoint( OR-Tools pe viitor, pentru testare s-a trimis un ecou).Separarea permite ca acelasi evaluator sa serveasca mai multe solutii: OR-Tools în productie, NN/2-opt/ordinea manuala în experiment.
+
+
 
