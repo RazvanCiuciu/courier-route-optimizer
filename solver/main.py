@@ -23,26 +23,35 @@ class SolveRequest(BaseModel):
     travel_time_matrix: list[list[int]]
     num_vehicles : int
 
+def compute_route(order: list[int], request: SolveRequest):
+    courier = request.courier
+    matrix = request.travel_time_matrix
+    locations_by_index = {loc.index: loc for loc in request.locations}
+
+    current_time = courier.shift_start
+    current_pos = courier.start_location_index
+
+    stops = []
+    for idx in order:
+        loc = locations_by_index[idx]        
+        current_time += matrix[current_pos][idx]
+        stops.append({"index": idx, "eta": current_time})
+        current_time += loc.service_time_min
+        current_pos = idx
+
+    return stops, current_time - courier.shift_start
+
 @app.post("/solve")
 def solve(request: SolveRequest):
     
-    courier = request.courier
-    matrix = request.travel_time_matrix
-
-    current_time = courier.shift_start # delivery starts at  10:00
-    current_pos = courier.start_location_index # starting location is the store
-
-    stops = []
-    for loc in request.locations:
-        if loc.index == courier.start_location_index:
-            continue
-        current_time += matrix[current_pos][loc.index]
-        stops.append({"index" : loc.index, "eta": current_time})
-        current_time += loc.service_time_min
-        current_pos = loc.index
+    echo_order = [loc.index for loc in request.locations
+                  if loc.index != request.courier.start_location_index]
+    stops, total = compute_route(echo_order, request)
 
     return {
         "routes": [{"vehicle": 0, "stops": stops}],
         "dropped": [],
-        "total_time_min": current_time - courier.shift_start
+        "total_time_min": total
     }
+
+###intrbare de pus: in compute route care e faza cu loc???
