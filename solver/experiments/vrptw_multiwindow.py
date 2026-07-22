@@ -1,3 +1,11 @@
+"""Vehicles Routing Problem (VRP) with Time Windows."""
+
+from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+
+import random
+from time import perf_counter
+
 def create_data_model():
     """Stores the data for the problem."""
     data = {}
@@ -25,7 +33,7 @@ def create_data_model():
         [(650, 720)],    
         [(600, 1290)],   
     ]
-    data["num_vehicles"] = 4
+    data["num_vehicles"] = 1
     data["depot"] = 0
     return data
 
@@ -63,24 +71,141 @@ def expand_locations(locations, matrix):
                     
     return new_matrix, expanded_windows, node_to_location, twin_groups
 
-data = create_data_model()
-new_matrix, expanded_windows, node_to_location, twin_groups = expand_locations(
-    data["time_windows"], data["time_matrix"]
+
+def print_solution(data, manager, routing, solution):
+    """Prints solution on console."""
+    print(f"Objective: {solution.ObjectiveValue()}")
+    time_dimension = routing.GetDimensionOrDie("Time")
+    total_time = 0
+    for vehicle_id in range(data["num_vehicles"]):
+        if not routing.IsVehicleUsed(solution, vehicle_id):
+            continue
+        index = routing.Start(vehicle_id)
+        plan_output = f"Route for vehicle {vehicle_id}:\n"
+        while not routing.IsEnd(index):
+            time_var = time_dimension.CumulVar(index)
+            plan_output += (
+                f"{manager.IndexToNode(index)}"
+                f" Time({solution.Min(time_var)},{solution.Max(time_var)})"
+                " -> "
+            )
+            index = solution.Value(routing.NextVar(index))
+        time_var = time_dimension.CumulVar(index)
+        plan_output += (
+            f"{manager.IndexToNode(index)}"
+            f" Time({solution.Min(time_var)},{solution.Max(time_var)})\n"
+        )
+        plan_output += f"Time of the route: {solution.Min(time_var)}min\n"
+        print(plan_output)
+        total_time += solution.Min(time_var)
+    print(f"Total time of all routes: {total_time}min")
+
+
+def main():
+    """Solve the VRP with time windows."""
+
+    # Instantiate the data problem.
+    data = create_data_model()
+    new_matrix, expanded_windows, node_to_location, twin_groups = expand_locations(
+        data["time_windows"], data["time_matrix"]
 )
 
-print("1. GRUPURILE DE GEMENI (twin_groups):")
-for i, group in enumerate(twin_groups):
-    print(f"Clientul original {i:2d}: {group}")
-print("-" * 40)
+    #aici o sa am eu datele mele, time_matrix, time_windows, num_vehicles, depot (start index)
+    #de observat ca in cazul asta am un singur timeWindow per locatie, in timp ce eu posibil sa am mai multe (daca un client nu poate intre 2-5 automat am 2 timewindows)
+ 
+    # Create the routing index manager.
+    manager = pywrapcp.RoutingIndexManager(
+        len(new_matrix), data["num_vehicles"], data["depot"]
+    )
 
-print("\n2. FERESTRELE DE TIMP EXTINSE:")
-for i, window in enumerate(expanded_windows):
-    orig = node_to_location[i]
-    print(f"Nod nou {i:2d} (Locația originală {orig}): {window}")
-print("-" * 40)
+    # Create Routing Model.
+    routing = pywrapcp.RoutingModel(manager)
+    
+    #aici folosesc OR-Tools ca sa creez index manager si routing model 
+    #RoutingIndexManager traduce informatile pe care ii le dau eu intr un mod in care OR-Tools le intelege
+    #RoutingModel creeaza un routin model pe baza managerului 
 
-print("\n3. MATRICEA DE TIMPI EXTINSĂ (12x12):")
-total_nodes = len(node_to_location)
-for i in range(total_nodes):
-    row_str = " ".join(f"{val:2d}" for val in new_matrix[i])
-    print(f"Nod {i:2d} (Orig {node_to_location[i]}): [ {row_str} ]")
+    # Create and register a transit callback.
+    def time_callback(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return new_matrix[from_node][to_node]
+    #aici mi ar da timpul pe care l as face de la nodul from la nodul to 
+    
+    
+    transit_callback_index = routing.RegisterTransitCallback(time_callback)
+    #OR-Tools e C++ si de aia nu poate vedea functii pyhton direct
+    #RegisterTransitCallback e o predare a functie pe care Or-Tools o inregistrez la el in tabel si im da inapoi un index pentru unde sta functia in tabel
+    
+
+    # Define cost of each arc.
+    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+    # folosind functia time_callback dau o valoare fiecarui drum dintre 2 locatii
+
+
+
+    # Add Time Windows constraint.
+    time = "Time"
+    routing.AddDimension(
+        transit_callback_index, # functia de callback(ce imi da timpul dintr 2 locatii)
+        1290,  # cat am voie maxim sa stau dupa un client in cazul meu
+        1290,  # cand se termina ziua
+        False,  # nu sunt fortat sa plec cu toate vechiculele la timpul 0
+        time, #numele
+    )
+    #concept central la Or-Tools Routing
+    #o "dimensiune" este o cantitate care se acumuleaza de a lungul rutei, in cazul meu timpul
+
+
+    time_dimension = routing.GetDimensionOrDie(time)
+    # Add time window constraints for each location except depot.
+    for node_idx, window in enumerate(expanded_windows):
+        if node_idx == data["depot"]:
+            continue
+        index = manager.NodeToIndex(node_idx)
+        time_dimension.CumulVar(index).SetRange(window[0], window[1])
+    #se pun constrangerile de timp pe fiacere nod
+
+    for group in twin_groups:
+        if data["depot"] in group:
+            continue
+        indices = [manager.NodeToIndex(node) for node in group]
+        routing.AddDisjunction(indices, 100_000)
+
+    # Add time window constraints for each vehicle start node.
+    depot_window = expanded_windows[data["depot"]]
+    for vehicle_id in range(data["num_vehicles"]):
+        index = routing.Start(vehicle_id)
+        time_dimension.CumulVar(index).SetRange(depot_window[0], depot_window[1])
+    #aici dau programul de lucru pentru fiecare vehicul
+
+    # Instantiate route start and end times to produce feasible times.
+    for i in range(data["num_vehicles"]):
+        routing.AddVariableMinimizedByFinalizer(
+            time_dimension.CumulVar(routing.Start(i))
+        )
+        routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.End(i)))
+    #face ca start-ul si end-ul ficarui vehicul sa fie cea mai mica val posibila
+
+    # Setting first solution heuristic.
+    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+    search_parameters.first_solution_strategy = (
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+    )
+    #aici setez strategia de rezolvare folosing PATH_CHEAPEST_ARC care este foarte un NN imporved
+
+   # Solve the problem.
+    t0 = perf_counter()
+    solution = routing.SolveWithParameters(search_parameters)
+    print(f"solve: {perf_counter() - t0:.3f}s")
+    #aici e rezolvata problema in sine
+
+    # Print solution on console.
+    if solution:
+        print_solution(data, manager, routing, solution)
+
+
+if __name__ == "__main__":
+    main()
