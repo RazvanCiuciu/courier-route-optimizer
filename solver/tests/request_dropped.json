@@ -1,0 +1,11 @@
+{
+  "courier": {"shift_start": 540, "shift_end": 1140, "start_location_index": 0},
+  "locations": [
+    {"index": 0, "time_windows": [{"start": 540, "end": 1140}], "service_time_min": 0},
+    {"index": 1, "time_windows": [{"start": 545, "end": 660}], "service_time_min": 5},
+    {"index": 2, "time_windows": [{"start": 540, "end": 1140}], "service_time_min": 3},
+    {"index": 3, "time_windows": [{"start": 300, "end": 310}], "service_time_min": 5}
+  ],
+  "travel_time_matrix": [[0,12,7,15],[12,0,9,4],[7,9,0,11],[15,4,11,0]],
+  "num_vehicles": 1
+}
