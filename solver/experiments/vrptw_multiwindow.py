@@ -2,7 +2,8 @@
 
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
-
+from main import expand_locations
+from main import solve_with_ortools, SolveRequest
 import random
 from time import perf_counter
 
@@ -36,41 +37,6 @@ def create_data_model():
     data["num_vehicles"] = 1
     data["depot"] = 0
     return data
-
-def expand_locations(locations, matrix):
-    twin_groups = []
-    node_to_location = {}
-    expanded_windows = []
-
-    N = len(locations)
-
-    for i in range(N):
-        expanded_windows.append(locations[i][0])
-        node_to_location[i] = i
-        twin_groups.append([i])
-        
-    new_node_id = N
-    for i in range(N):
-        if len(locations[i]) > 1:
-            for j in locations[i][1:]:
-                expanded_windows.append(j)
-                node_to_location[new_node_id] = i
-                twin_groups[i].append(new_node_id)
-                new_node_id += 1
-
-    new_matrix= []
-    total_nodes = len(node_to_location)
-    
-    for i in range(total_nodes):
-        row = []
-        for j in range(total_nodes):
-            val_i = node_to_location[i]
-            val_j = node_to_location[j]
-            row.append(matrix[val_i][val_j])
-        new_matrix.append(row)
-                    
-    return new_matrix, expanded_windows, node_to_location, twin_groups
-
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
