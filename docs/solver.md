@@ -118,23 +118,14 @@ Solver-ul primeste o zi de livrari (locatii, ferestre orare, timpi de deplasare)
 
 
 
-1\. Fiecare locatie are MINIM o fereastra explicita. Traducerea "fara ferestre
-
-&#x20;  = oricand" o face backend-ul inainte de request (vezi decisions.md #1).
-
-2\. Timpul: minute de la miezul noptii, intregi. Fara Date, fara timezone.
-
-3\. Solver-ul NU vorbeste cu OSRM — matricea vine in request. Backend-ul e
-
-&#x20;  orchestratorul (DB -> OSRM -> solver).
-
-4\. Locatiile sunt indecsi in matrice, nu id-uri de comenzi. Maparea
-
-&#x20;  index <-> comanda e responsabilitatea backend-ului.
-
-5\. "dropped" poate fi ne-gol: solver-ul renunta elegant la ce nu incape
-
-&#x20;  (disjunctions), nu esueaza tot request-ul.
+1. Fiecare locatie are MINIM o fereastra explicita. Traducerea "fara ferestre oricand" o face backend-ul inainte de request (vezi decisions.md #1).
+2. Timpul: minute de la miezul noptii, intregi. Fara Date, fara timezone.
+3. Solver-ul NU vorbeste cu OSRM — matricea vine in request. Backend-ul e
+orchestratorul (DB -> OSRM -> solver).
+4. Locatiile sunt indecsi in matrice, nu id-uri de comenzi. Maparea
+index <-> comanda e responsabilitatea backend-ului.
+5. "dropped" poate fi ne-gol: solver-ul renunta elegant la ce nu inscape (disjunctions), nu esueaza tot request-ul.
+6. Locatie fara ferestre = disponibile oricand; nu contorizeaza incalcare. Backend-ul poate totusi trimite fereastra explicita.
 
 
 

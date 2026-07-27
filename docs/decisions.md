@@ -76,3 +76,9 @@ compute\_route(order, request) evaluaza orice permutare. Ordinea este produsa de
 
 
 
+**#9 Compute\_route acum respecta ferestrele**
+
+
+
+Asteapta la sosire devreme, numara violations daca toate ferestrele s-au inchis. Lista goala de ferestre = fara violations.
+
