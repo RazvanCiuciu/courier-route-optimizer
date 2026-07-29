@@ -13,24 +13,23 @@ class Location(BaseModel):
     time_windows: list[TimeWindow]
     service_time_min: int
 
-class Courier(BaseModel):
+class Vehicle(BaseModel):
+    id: int
     shift_start: int
     shift_end: int
-    start_location_index: int
 
 class SolveRequest(BaseModel):
-    courier: Courier
+    vehicles: list[Vehicle]
+    start_location_index: int
     locations: list[Location]
     travel_time_matrix: list[list[int]]
-    num_vehicles : int
 
-def compute_route(order: list[int], request: SolveRequest):
-    courier = request.courier
+def compute_route(order: list[int], request: SolveRequest, shift_start: int):
     matrix = request.travel_time_matrix
     locations_by_index = {loc.index: loc for loc in request.locations} #locations_by_index = {0: <Location index=0, service=0, windows=...>, ...
 
-    current_time = courier.shift_start
-    current_pos = courier.start_location_index
+    current_time = shift_start
+    current_pos = request.start_location_index
 
     stops = []
     violations = 0
@@ -57,7 +56,7 @@ def compute_route(order: list[int], request: SolveRequest):
         current_time = service_start + loc.service_time_min
         current_pos = idx
 
-    return stops, current_time - courier.shift_start, violations
+    return stops, current_time - shift_start, violations
 
 def expand_locations(locations, matrix):
     twin_groups = []
@@ -94,8 +93,9 @@ def expand_locations(locations, matrix):
     return new_matrix, expanded_windows, node_to_location, twin_groups
 
 def solve_with_ortools(request: SolveRequest):
-    courier = request.courier
     matrix = request.travel_time_matrix
+    depot = request.start_location_index
+    num_vehicles = len(request.vehicles)
 
     locations_windows = [
         [(w.start, w.end) for w in loc.time_windows]
@@ -112,7 +112,7 @@ def solve_with_ortools(request: SolveRequest):
         for node in range(len(new_matrix))
     ]
 
-    manager = pywrapcp.RoutingIndexManager(len(new_matrix), 1, courier.start_location_index)
+    manager = pywrapcp.RoutingIndexManager(len(new_matrix), num_vehicles, depot)
     routing = pywrapcp.RoutingModel(manager)
 
     def time_callback(from_index, to_index):
@@ -123,57 +123,70 @@ def solve_with_ortools(request: SolveRequest):
     transit_idx = routing.RegisterTransitCallback(time_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_idx)
 
-    routing.AddDimension(transit_idx, courier.shift_end, courier.shift_end, False, "Time")
+    horizon = max(v.shift_end for v in request.vehicles)
+    routing.AddDimension(transit_idx, horizon, horizon, False, "Time")
     time_dim = routing.GetDimensionOrDie("Time")
 
     for node_idx, window in enumerate(expanded_windows):
-        if node_idx == courier.start_location_index:
+        if node_idx == depot:
             continue
         idx = manager.NodeToIndex(node_idx)
         time_dim.CumulVar(idx).SetRange(window[0], window[1])
 
     for group in twin_groups:
-        if courier.start_location_index in group:
+        if depot in group:
             continue
         indices = [manager.NodeToIndex(node) for node in group]
         routing.AddDisjunction(indices, 100_000)
 
-    depot_window = expanded_windows[courier.start_location_index]
-    start_idx = routing.Start(0)
-    time_dim.CumulVar(start_idx).SetRange(depot_window[0], depot_window[1])
-    routing.AddVariableMinimizedByFinalizer(time_dim.CumulVar(routing.Start(0)))
-    routing.AddVariableMinimizedByFinalizer(time_dim.CumulVar(routing.End(0)))
+    for v_idx, vehicle in enumerate(request.vehicles):
+        time_dim.CumulVar(routing.Start(v_idx)).SetRange(vehicle.shift_start, vehicle.shift_end)
+        time_dim.CumulVar(routing.End(v_idx)).SetRange(vehicle.shift_start, vehicle.shift_end)
+        routing.AddVariableMinimizedByFinalizer(time_dim.CumulVar(routing.Start(v_idx)))
+        routing.AddVariableMinimizedByFinalizer(time_dim.CumulVar(routing.End(v_idx)))
 
     search_params = pywrapcp.DefaultRoutingSearchParameters()
     search_params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     solution = routing.SolveWithParameters(search_params)
 
-    all_clients = [loc.index for loc in request.locations if loc.index != courier.start_location_index]
+    all_clients = [loc.index for loc in request.locations if loc.index != depot]
     if not solution:
-        return [], all_clients
+        return [[] for _ in request.vehicles], all_clients
 
-    order = []
-    index = routing.Start(0)
-    while not routing.IsEnd(index):
-        node = manager.IndexToNode(index)
-        if node != courier.start_location_index:
-            order.append(node_to_location[node])
-        index = solution.Value(routing.NextVar(index))
+    orders = []
+    for v_idx in range(num_vehicles):
+        order = []
+        index = routing.Start(v_idx)
+        while not routing.IsEnd(index):
+            node = manager.IndexToNode(index)
+            if node != depot:
+                order.append(node_to_location[node])
+            index = solution.Value(routing.NextVar(index))
+        orders.append(order)
 
-    visited_clients = set(order)
-    dropped = [c for c in all_clients if c not in visited_clients]
+    visited = {client for order in orders for client in order}
+    dropped = [c for c in all_clients if c not in visited]
 
-    return order, dropped
+    return orders, dropped
 
 @app.post("/solve")
 def solve(request: SolveRequest):
-    order, dropped = solve_with_ortools(request)
-    stops, total, violations = compute_route(order, request)
+    orders, dropped = solve_with_ortools(request)
+
+    routes = []
+    total_all = 0
+    for vehicle, order in zip(request.vehicles, orders):
+        stops, total, violations = compute_route(order, request, vehicle.shift_start)
+        routes.append({
+            "vehicle": vehicle.id,
+            "stops": stops,
+            "total_time_min": total,
+            "window_violations": violations
+        })
+        total_all += total
 
     return {
-        "routes": [{"vehicle": 0, "stops": stops}],
+        "routes": routes,
         "dropped": dropped,
-        "total_time_min": total,
-        "window_violations" : violations
-    }   
-
+        "total_time_min": total_all
+    }
