@@ -17,6 +17,7 @@ class Vehicle(BaseModel):
     id: int
     shift_start: int
     shift_end: int
+    max_stops: int = 60
 
 class SolveRequest(BaseModel):
     vehicles: list[Vehicle]
@@ -132,6 +133,20 @@ def solve_with_ortools(request: SolveRequest):
             continue
         idx = manager.NodeToIndex(node_idx)
         time_dim.CumulVar(idx).SetRange(window[0], window[1])
+
+    # Capacitate: fiecare oprire consuma 1 unitate; depotul 0
+    def demand_callback(from_index):
+        node = manager.IndexToNode(from_index)
+        return 0 if node == depot else 1
+
+    demand_idx = routing.RegisterUnaryTransitCallback(demand_callback)
+    routing.AddDimensionWithVehicleCapacity(
+        demand_idx,
+        0,                                          
+        [v.max_stops for v in request.vehicles],    
+        True,                                      
+        "Count"
+    )
 
     for group in twin_groups:
         if depot in group:

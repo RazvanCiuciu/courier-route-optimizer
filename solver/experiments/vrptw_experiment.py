@@ -7,10 +7,6 @@ import random
 
 def fake_travel_matrix(n: int) -> list[list[int]]:
     """Traducerea fakeTravelMatrix din warmup: simetrica, diagonala 0, valori 5-25."""
-    # TODO tu — aceeasi logica de acum 4 zile:
-    #   matrice n x n; m[i][i] = 0; pentru j < i copiezi m[j][i]; altfel random.randint(5, 25)
-    #   (random.randint e INCLUSIV la ambele capete — mai simplu ca Math.floor(Math.random()...))
-    #   constructia: fie liste imbricate cu append (stilul tau), fie comprehension — alegerea ta
     travel_matrix: list[list[int]] = []
     
     for i in range(n):
@@ -114,7 +110,6 @@ def main():
     # Define cost of each arc.
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # folosind functia time_callback dau o valoare fiecarui drum dintre 2 locatii
-
 
 
     # Add Time Windows constraint.
