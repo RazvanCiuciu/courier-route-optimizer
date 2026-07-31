@@ -7,7 +7,7 @@ from main import SolveRequest, solve_with_ortools, compute_route
 random.seed(42)  # reproductibil - aceleasi coordonate la fiecare rulare
 
 # coordonate random in zona Timisoara + imprejurimi
-N = 45
+N = 120
 coords = [
     (random.uniform(45.70, 45.80), random.uniform(21.15, 21.35))
     for _ in range(N)
@@ -69,8 +69,8 @@ for i in range(N):
 #construieste request-ul si ruleaza solver-ul cronometrat
 request_json = {
     "vehicles": [
-        {"id": 0, "shift_start": 540,  "shift_end": 1290, "max_stops": 20},
-        {"id": 1, "shift_start": 1980, "shift_end": 2730, "max_stops": 20}
+        {"id": 0, "shift_start": 540,  "shift_end": 1290, "max_stops": 60},
+        {"id": 1, "shift_start": 1980, "shift_end": 2730, "max_stops": 60}
     ],
     "start_location_index": 0,
     "locations": locations,
