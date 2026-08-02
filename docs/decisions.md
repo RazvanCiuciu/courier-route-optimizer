@@ -8,6 +8,8 @@ Format: ce am decis, ce sau de ce am respins.
 
 **#1. Ferestre orare goale = client disponibil oricand**
 
+**\[SUPERSEDED de #16, la introducerea multi-zi]**
+
 
 
 Un client fara *timeWindows* poate primi oricand, nu niciodata. Alternativa (gol = imposibil de vizitat) ar bloca livrarea. In solver: se traduce in fereastra explicita:
@@ -80,5 +82,76 @@ compute\_route(order, request) evaluaza orice permutare. Ordinea este produsa de
 
 
 
-Asteapta la sosire devreme, numara violations daca toate ferestrele s-au inchis. Lista goala de ferestre = fara violations.
+Asteapta la sosire devreme, numara violations daca toate ferestrele s-au inchis.
+
+
+
+**#10 Axa de timp este continua pentru multi-zi**
+
+
+
+ziua N incepe N\*1440; joi = 540-1290, vineri = 1980-2730. Alternativa respinsa: camp separat "zi" per comanda (ar fi mutat partionarea in afara solver-lui)
+
+
+
+**#11 Legarea vehicul/zi necesita ambele capete**
+
+
+
+Start si end contranse. Cu slack mare, Start sigur permite vehiculului sa traverseze in ziua urmatoare. Bug observat (vehiculul de joi livra vineri dupa 24h de asteptare)
+
+
+
+**#12 Contract v2**
+
+
+
+*vehicle\[]* in loc *courier + num\_vehicles*; *start\_location\_index* mutat la nivel de request mutat la nivel de request (depozit comun); metrici per ruta + agregat global. Motivul: un
+
+"vehicul" poate fi un curier sau o zi de livrare
+
+
+
+**#13 Capacitate per vehicul** 
+
+
+
+dimensiune "count", *max\_stops* cu default 60. Alternativa respinsa: echilibrare fortata intre zile (artificiala, realitatea are capacitatea maxima, nu cerinta de egalitate)
+
+
+
+**#14 Limita *total\_time\_min***
+
+
+
+masoara durata turei incluzand asteptarile, nu timpul de condus si nici ora de terminare. De revizitat: adaugat *finish\_time* in raspuns + returul la depot in *compute\_route* (bug identificat azi, nereparat)
+
+
+
+**#15 *--max-table-size 1000* la pornirea OSRM**
+
+
+
+limita implicita respinge cereri > 100 coordonate.
+
+
+
+**#16 Traducerea "fara preferinte" cu multi-zi**
+
+
+
+Inlocuieste #1. Cu axa de timp pe mai multe zile, "oricand" nu mai poate fi
+
+o singura fereastra (ar include si noaptea dintre zile). Backend-ul traduce
+
+in cate o fereastra per zi disponibila: *\[(joi\_start, joi\_end), (vineri\_start, vineri\_end)]*.
+
+Solver-ul cere minim o fereastra explicita per locatie; nu mai accepta lista goala.
+
+Alternativa respinsa: solver-ul sa primeasca "delivery\_days" si sa expandeze singur
+
+(ar fi complicat contractul si ar fi mutat cunoasterea zilelor in solver).
+
+
+
 
