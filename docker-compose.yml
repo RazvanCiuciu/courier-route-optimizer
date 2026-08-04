@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vrptw
+      POSTGRES_PASSWORD: vrptw
+      POSTGRES_DB: vrptw
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vrptw"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  solver:
+    build:
+      context: ./solver
+    environment:
+      OSRM_URL: ${OSRM_URL:-}
+    ports:
+      - "8000:8000"
+
+  osrm:
+    image: osrm/osrm-backend@sha256:af5d4a83fb90086a43b1ae2ca22872e6768766ad5fcbb07a29ff90ec644ee409
+    profiles: ["osrm"]
+    command: osrm-routed --algorithm mld --max-table-size 1000 /data/romania-260726.osrm
+    volumes:
+      - ./solver/osrm-data:/data
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:
