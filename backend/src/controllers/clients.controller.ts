@@ -1,10 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import * as clientsRepo from "../repositories/clients.repo";
+import { newClientSchema } from "../validation/schemas";
 import { NotFoundError } from "../errors";
+
+const idSchema = z.coerce.number().int().positive();
 
 export async function create(req: Request, res: Response, next: NextFunction) {
     try {
-        const client = await clientsRepo.create(req.body);
+        const data = newClientSchema.parse(req.body);
+        const client = await clientsRepo.create(data);
         res.status(201).json(client);
     } catch (err) {
         next(err);
@@ -13,7 +18,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
     try {
-        const id = Number(req.params.id);
+        const id = idSchema.parse(req.params.id);
         const client = await clientsRepo.findById(id);
         if (client === null) {
             throw new NotFoundError("Client", id);

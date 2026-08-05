@@ -22,5 +22,15 @@ Content-Type: application/json
   ]
 }
 
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "client_id": 1,
+  "delivery_week": "10-08-2026",
+  "total_amount": "abc",
+  "time_windows": []
+}
+
 ### Comenzile săptămânii
 GET http://localhost:3000/orders?week=2026-08-10
