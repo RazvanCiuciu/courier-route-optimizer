@@ -23,7 +23,7 @@ export interface Order {
     readonly id: number;
     readonly client_id: number;
     readonly assigned_day: DeliveryDay | null;   
-    readonly delivery_week: Date;
+    readonly delivery_week: string;
     readonly status: OrderStatus;
     readonly drop_reason: string | null;
     readonly total_amount: string;      // NUMERIC → string din pg, ca să nu piardă precizie
@@ -33,7 +33,7 @@ export interface Order {
 
 export interface Route {
     readonly id: number;
-    readonly delivery_week: Date;
+    readonly delivery_week: string;
     readonly day: DeliveryDay;
     readonly vehicle_index: number;
     readonly total_time_min: number | null;
@@ -49,7 +49,6 @@ export interface RouteStop {
     readonly eta_min: number | null;
     readonly chosen_window_id: number | null;
 }
-
 
 export interface NewTimeWindow {
     readonly day: DeliveryDay;

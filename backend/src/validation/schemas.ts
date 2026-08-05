@@ -36,3 +36,10 @@ export const paymentSchema = z.object({
     paid_cash: z.string().regex(amountRegex, "Invalid amount"),
     paid_transfer: z.string().regex(amountRegex, "Invalid amount"),
 });
+
+export const stopUpdateSchema = z.object({
+    status: z.enum(["delivered", "failed_attempt"]),
+    paid_cash: z.string().regex(amountRegex, "Invalid amount").optional(),
+    paid_transfer: z.string().regex(amountRegex, "Invalid amount").optional(),
+    drop_reason: z.string().nullable().optional(),
+});
