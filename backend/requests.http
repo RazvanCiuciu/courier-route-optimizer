@@ -1,0 +1,26 @@
+### Creare client
+POST http://localhost:3000/clients
+Content-Type: application/json
+
+{
+  "name": "Ion Popescu",
+  "address": "Strada Victoriei 10, Timisoara",
+  "phone_number": "0721234567"
+}
+
+### Creare comandă cu două ferestre
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "client_id": 1,
+  "delivery_week": "2026-08-10",
+  "total_amount": "85.50",
+  "time_windows": [
+    { "day": "thursday", "start_time": "08:00:00", "end_time": "10:00:00" },
+    { "day": "thursday", "start_time": "17:00:00", "end_time": "19:00:00" }
+  ]
+}
+
+### Comenzile săptămânii
+GET http://localhost:3000/orders?week=2026-08-10
