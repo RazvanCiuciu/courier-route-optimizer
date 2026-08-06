@@ -20,7 +20,12 @@ CREATE TABLE orders(
     assigned_day delivery_day,
     delivery_week DATE NOT NULL,
     status order_status NOT NULL DEFAULT 'pending',
-    drop_reason TEXT
+    drop_reason TEXT,
+    total_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+    paid_cash      NUMERIC(10,2) NOT NULL DEFAULT 0,
+    paid_transfer  NUMERIC(10,2) NOT NULL DEFAULT 0,
+    CONSTRAINT payment_not_exceeding CHECK (paid_cash + paid_transfer <= total_amount),
+    CONSTRAINT payment_non_negative CHECK (paid_cash >= 0 AND paid_transfer >= 0)
 );
 
 CREATE TABLE time_windows (

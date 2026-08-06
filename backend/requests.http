@@ -22,6 +22,7 @@ Content-Type: application/json
   ]
 }
 
+### test pentru zod
 POST http://localhost:3000/orders
 Content-Type: application/json
 
@@ -32,5 +33,30 @@ Content-Type: application/json
   "time_windows": []
 }
 
-### Comenzile săptămânii
+### tranzactie invalida
+PATCH http://localhost:3000/stops/1
+Content-Type: application/json
+
+{
+  "status": "delivered",
+  "paid_cash": "50.00",
+  "paid_transfer": "35.50"
+}
+
+### asignare zi
+PATCH http://localhost:3000/orders/1/day
+Content-Type: application/json
+
+{ "day": "thursday" }
+
+### livrare
+PATCH http://localhost:3000/stops/1
+Content-Type: application/json
+
+{
+  "status": "delivered",
+  "paid_cash": "50.00",
+  "paid_transfer": "35.50"
+}
+###
 GET http://localhost:3000/orders?week=2026-08-10

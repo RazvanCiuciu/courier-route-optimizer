@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as clientsRepo from "../repositories/clients.repo";
 import { newClientSchema } from "../validation/schemas";
 import { NotFoundError } from "../errors";
+import { ensureCoordinates } from "../services/geocoding.service";
 
 const idSchema = z.coerce.number().int().positive();
 
@@ -33,6 +34,18 @@ export async function listAll(_req: Request, res: Response, next: NextFunction) 
     try {
         const clients = await clientsRepo.findAll();
         res.json(clients);
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function geocodeClient(req: Request, res: Response, next: NextFunction) {
+    try {
+        const id = idSchema.parse(req.params.id);
+        const client = await clientsRepo.findById(id);
+        if (client === null) throw new NotFoundError("Client", id);
+        const coords = await ensureCoordinates(client);
+        res.json(coords);
     } catch (err) {
         next(err);
     }
