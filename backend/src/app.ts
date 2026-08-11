@@ -6,6 +6,7 @@ import ordersRoutes from "./routes/orders.routes";
 import clientsRoutes from "./routes/clients.routes";
 import { ZodError } from "zod";
 import stopsRoutes from "./routes/stops.routes";
+import routesRoutes from "./routes/routes.routes";
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use("/health", healthRoutes);
 app.use("/orders", ordersRoutes);
 app.use("/clients", clientsRoutes);
 app.use("/stops", stopsRoutes);
+app.use("/routes", routesRoutes);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {

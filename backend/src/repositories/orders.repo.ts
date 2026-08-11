@@ -2,7 +2,6 @@ import { pool } from "../db";
 import type { PoolClient } from "pg";
 import type { Order, NewOrder, TimeWindow, OrderStatus, DeliveryDay } from "../types/domain";
 
-// Comanda împreună cu ferestrele ei — forma pe care o consumă solver-ul
 export interface OrderWithWindows extends Order {
     readonly time_windows: TimeWindow[];
 }

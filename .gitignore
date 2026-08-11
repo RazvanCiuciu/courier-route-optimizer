@@ -155,3 +155,5 @@ Thumbs.db
 # OSRM
 solver/osrm-data/*.osm.pbf
 solver/osrm-data/*.osrm*
+
+.env

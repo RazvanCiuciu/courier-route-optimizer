@@ -58,5 +58,81 @@ Content-Type: application/json
   "paid_cash": "50.00",
   "paid_transfer": "35.50"
 }
+
+### geocodare client
+### client cu adresa reala
+POST http://localhost:3000/clients
+Content-Type: application/json
+
+{
+  "name": "Maria Ionescu",
+  "address": "Bulevardul Vasile Parvan 4, Timisoara",
+  "phone_number": "0722334455"
+}
+
+### preview rute
+POST http://localhost:3000/routes/preview
+Content-Type: application/json
+
+{ "delivery_week": "2026-08-10" }
+
+### client 3
+POST http://localhost:3000/clients
+Content-Type: application/json
+
+{ "name": "Ana Pop", "address": "Strada Gheorghe Lazar 5, Timisoara", "phone_number": "0723111222" }
+
+### client 4
+POST http://localhost:3000/clients
+Content-Type: application/json
+
+{ "name": "Radu Dinu", "address": "Calea Aradului 20, Timisoara", "phone_number": "0723333444" }
+
+### client 5
+POST http://localhost:3000/clients
+Content-Type: application/json
+
+{ "name": "Elena Marin", "address": "Strada Cluj 10, Timisoara", "phone_number": "0723555666" }
+
+### comanda joi dimineata
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "client_id": 3,
+  "delivery_week": "2026-08-10",
+  "total_amount": "50.00",
+  "time_windows": [
+    { "day": "thursday", "start_time": "09:00:00", "end_time": "12:00:00" }
+  ]
+}
+
+### comanda cu ferestre pe ambele zile (noduri gemene)
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "client_id": 4,
+  "delivery_week": "2026-08-10",
+  "total_amount": "75.00",
+  "time_windows": [
+    { "day": "thursday", "start_time": "08:00:00", "end_time": "11:00:00" },
+    { "day": "friday", "start_time": "14:00:00", "end_time": "17:00:00" }
+  ]
+}
+
+### comanda doar vineri
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "client_id": 5,
+  "delivery_week": "2026-08-10",
+  "total_amount": "40.00",
+  "time_windows": [
+    { "day": "friday", "start_time": "10:00:00", "end_time": "13:00:00" }
+  ]
+}
+
 ###
 GET http://localhost:3000/orders?week=2026-08-10
