@@ -3,8 +3,8 @@ import { api } from "../api/client";
 import type { PreviewResult } from "../types/domain";
 
 const DAY_LABEL: Record<string, string> = {
-    thursday: "Joi",
-    friday: "Vineri",
+    thursday: "Thursday",
+    friday: "Friday",
 };
 
 export default function RoutePreview() {
@@ -22,7 +22,7 @@ export default function RoutePreview() {
             });
             setResult(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Eroare necunoscuta");
+            setError(err instanceof Error ? err.message : "Unknown error");
             setResult(null);
         } finally {
             setLoading(false);
@@ -38,20 +38,20 @@ export default function RoutePreview() {
             });
             setResult(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Eroare necunoscuta");
+            setError(err instanceof Error ? err.message : "Unknown error");
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="p-6">
             <div className="mx-auto max-w-3xl">
-                <h1 className="text-2xl font-bold text-slate-900">Optimizare rute</h1>
+                <h1 className="text-2xl font-bold text-slate-900">Route optimization</h1>
 
                 <div className="mt-6 flex flex-wrap items-end gap-3">
                     <label className="flex flex-col text-sm text-slate-600">
-                        Saptamana de livrare
+                        Delivery week
                         <input
                             type="date"
                             value={week}
@@ -65,7 +65,7 @@ export default function RoutePreview() {
                         disabled={loading}
                         className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
                     >
-                        {loading ? "Se calculeaza..." : "Genereaza rute"}
+                        {loading ? "Calculating..." : "Generate routes"}
                     </button>
 
                     {result && (
@@ -74,7 +74,7 @@ export default function RoutePreview() {
                             disabled={loading}
                             className="rounded bg-emerald-600 px-4 py-2 text-white disabled:opacity-50"
                         >
-                            Confirma
+                            Confirm
                         </button>
                     )}
                 </div>
@@ -86,9 +86,9 @@ export default function RoutePreview() {
                 {result && (
                     <div className="mt-6 space-y-4">
                         <p className="text-sm text-slate-600">
-                            Timp total: {result.total_time_min} min
+                            Total time: {result.total_time_min} min
                             {result.dropped_order_ids.length > 0 &&
-                                ` · ${result.dropped_order_ids.length} comenzi neprogramate`}
+                                ` · ${result.dropped_order_ids.length} unscheduled orders`}
                         </p>
 
                         {result.routes.map((route) => (
@@ -101,13 +101,13 @@ export default function RoutePreview() {
                                         {DAY_LABEL[route.day] ?? route.day}
                                     </h2>
                                     <span className="text-sm text-slate-500">
-                                        {route.stops.length} opriri · {route.total_time_min} min
+                                        {route.stops.length} stops · {route.total_time_min} min
                                     </span>
                                 </div>
 
                                 {route.window_violations > 0 && (
                                     <p className="mt-1 text-sm text-amber-700">
-                                        {route.window_violations} ferestre incalcate
+                                        {route.window_violations} time windows violated
                                     </p>
                                 )}
 
@@ -127,12 +127,12 @@ export default function RoutePreview() {
                                                 <span className="block truncate text-sm text-slate-500">
                                                     {stop.address}
                                                 </span>
-                                            </span>  
+                                            </span>
                                             <a href={`https://www.google.com/maps/dir/?api=1&destination=${stop.lat},${stop.lon}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="shrink-0 rounded border border-slate-300 px-3 py-1 text-sm text-slate-700">
-                                                Navigheaza
+                                                Navigate
                                             </a>
                                         </li>
                                     ))}
