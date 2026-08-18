@@ -1,14 +1,14 @@
 import * as ordersRepo from "../repositories/orders.repo";
 import * as clientsRepo from "../repositories/clients.repo";
 import type { OrderWithWindows } from "../repositories/orders.repo";
-import type { NewOrder, Order, OrderStatus, DeliveryDay } from "../types/domain";
+import type { NewOrder, Order, OrderStatus, DeliveryDay, NewTimeWindow } from "../types/domain";
 import { NotFoundError, ValidationError, ConflictError } from "../errors";
 
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     pending:        ["assigned", "dropped"],
     assigned:       ["delivered", "failed_attempt", "dropped"],
-    failed_attempt: ["assigned", "dropped"],      
+    failed_attempt: ["assigned", "delivered", "dropped"],      
     delivered:      [],                            
     dropped:        ["pending"],                  
 };
@@ -102,4 +102,31 @@ export async function recordPayment(
 
     const updated = await ordersRepo.recordPayment(id, paidCash, paidTransfer);
     return updated!;
+}
+
+export async function rescheduleOrder(
+    id: number,
+    windows: readonly NewTimeWindow[]
+): Promise<OrderWithWindows> {
+    const order = await getOrderById(id);
+
+    if (order.status === "delivered") {
+        throw new ConflictError("Cannot reschedule a delivered order");
+    }
+    if (windows.length === 0) {
+        throw new ValidationError("At least one time window is required");
+    }
+    for (const w of windows) {
+        if (w.start_time >= w.end_time) {
+            throw new ValidationError(
+                `Invalid time window: ${w.start_time} is not before ${w.end_time}`
+            );
+        }
+    }
+
+    const newWindows = await ordersRepo.replaceTimeWindows(id, windows);
+
+    const updated = await ordersRepo.updateStatus(id, "assigned", null);
+
+    return { ...updated!, time_windows: newWindows };
 }

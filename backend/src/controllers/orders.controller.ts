@@ -68,3 +68,16 @@ export async function recordPayment(req: Request, res: Response, next: NextFunct
         next(err);
     }
 }
+
+import { rescheduleSchema } from "../validation/schemas";
+
+export async function reschedule(req: Request, res: Response, next: NextFunction) {
+    try {
+        const id = idSchema.parse(req.params.id);
+        const { time_windows } = rescheduleSchema.parse(req.body);
+        const order = await ordersService.rescheduleOrder(id, time_windows);
+        res.json(order);
+    } catch (err) {
+        next(err);
+    }
+}

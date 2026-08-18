@@ -43,3 +43,7 @@ export const stopUpdateSchema = z.object({
     paid_transfer: z.string().regex(amountRegex, "Invalid amount").optional(),
     drop_reason: z.string().nullable().optional(),
 });
+
+export const rescheduleSchema = z.object({
+    time_windows: z.array(newTimeWindowSchema).min(1, "At least one time window required"),
+});

@@ -1,6 +1,6 @@
 import { pool } from "../db";
 import type { PoolClient } from "pg";
-import type { Order, NewOrder, TimeWindow, OrderStatus, DeliveryDay } from "../types/domain";
+import type { Order, NewOrder,NewTimeWindow ,TimeWindow, OrderStatus, DeliveryDay } from "../types/domain";
 
 export interface OrderWithWindows extends Order {
     readonly time_windows: TimeWindow[];
@@ -125,4 +125,35 @@ export async function recordPayment(
             [id,paidCash,paidTransfer]
         );
         return result.rows[0] ?? null;
+}
+
+export async function replaceTimeWindows(
+    orderId: number,
+    windows: readonly NewTimeWindow[]
+): Promise<TimeWindow[]> {
+    const client: PoolClient = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        await client.query("DELETE FROM time_windows WHERE order_id = $1", [orderId]);
+
+        const inserted: TimeWindow[] = [];
+        for (const w of windows) {
+            const result = await client.query<TimeWindow>(
+                `INSERT INTO time_windows (order_id, day, start_time, end_time)
+                 VALUES ($1, $2, $3, $4)
+                 RETURNING *`,
+                [orderId, w.day, w.start_time, w.end_time]
+            );
+            inserted.push(result.rows[0]!);
+        }
+
+        await client.query("COMMIT");
+        return inserted;
+    } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+    } finally {
+        client.release();
+    }
 }

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from "react-router-do
 import OrdersList from "./pages/OrdersList";
 import RoutePreview from "./pages/RoutePreview";
 import OrderForm from "./pages/OrderForm";
+import CourierView from "./pages/CourierView";
 import type { ReactNode } from "react";
 
 function NavItem({ to, children }: { to: string; children: ReactNode }) {
@@ -27,6 +28,7 @@ export default function App() {
             <div className="min-h-screen bg-slate-50">
                 <nav className="border-b border-slate-200 bg-white">
                     <div className="mx-auto flex max-w-3xl gap-2 px-6 py-3">
+                        <NavItem to="/courier">Courier</NavItem>
                         <NavItem to="/orders/new">New order</NavItem>
                         <NavItem to="/orders">Orders</NavItem>
                         <NavItem to="/routes">Routes</NavItem>
@@ -35,6 +37,7 @@ export default function App() {
 
                 <Routes>
                     <Route path="/" element={<Navigate to="/orders" replace />} />
+                    <Route path="/courier" element={<CourierView />} />
                     <Route path="/orders/new" element={<OrderForm />} />
                     <Route path="/orders" element={<OrdersList />} />
                     <Route path="/routes" element={<RoutePreview />} />

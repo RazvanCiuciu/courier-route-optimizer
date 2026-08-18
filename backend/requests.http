@@ -149,6 +149,34 @@ GET http://localhost:3000/clients
 ### comenzile din baza
 GET http://localhost:3000/orders?week=2026-08-10
 
+### opririle zilei
+GET http://localhost:3000/routes/day?week=2026-08-10&day=thursday
+
+### marchez prima livrare
+PATCH http://localhost:3000/stops/25
+Content-Type: application/json
+
+{ "status": "delivered", "paid_cash": "50.00", "paid_transfer": "0.00" }
+
+### rerutare de la ora 11:00 (660 min)
+POST http://localhost:3000/routes/reroute
+Content-Type: application/json
+
+{ "delivery_week": "2026-08-10", "day": "thursday", "current_time_min": 660 }
+
+### verific noua ordine
+GET http://localhost:3000/routes/day?week=2026-08-10&day=thursday
+
+### reprogramare
+PATCH http://localhost:3000/orders/7/reschedule
+Content-Type: application/json
+
+{
+  "time_windows": [
+    { "day": "thursday", "start_time": "16:00:00", "end_time": "19:00:00" }
+  ]
+}
+
 ### commit
 POST http://localhost:3000/routes/commit
 Content-Type: application/json

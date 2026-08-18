@@ -9,5 +9,6 @@ router.get("/:id", ordersController.getById);
 router.patch("/:id/status", ordersController.changeStatus);
 router.patch("/:id/day", ordersController.assignDay);
 router.patch("/:id/payment", ordersController.recordPayment);
+router.patch("/:id/reschedule", ordersController.reschedule);
 
 export default router;
