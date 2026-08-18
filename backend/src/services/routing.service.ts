@@ -7,6 +7,7 @@ import { pool } from "../db";
 import { ValidationError, NotFoundError } from "../errors";
 import type { DeliveryDay } from "../types/domain";
 import type { PoolClient } from "pg";
+import * as stopsRepo from "../repositories/route_stops.repo";
 
 const DEPOT: Coordinates = {
     lat: Number(process.env.DEPOT_LAT),
@@ -200,6 +201,174 @@ export async function commitRoutes(preview: PreviewResult): Promise<void> {
                  WHERE id = $1 AND status = 'pending'`,
                 [orderId]
             );
+        }
+
+        await client.query("COMMIT");
+    } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+export async function rerouteRemaining(
+    week: string,
+    day: DeliveryDay,
+    currentTimeMin: number
+): Promise<PreviewResult> {
+    const stops = await stopsRepo.findDayStops(week, day);
+
+    const done = stops.filter((s) => s.status === "delivered");
+    const remaining = stops.filter(
+        (s) => s.status === "assigned" || s.status === "failed_attempt"
+    );
+
+    if (remaining.length === 0) {
+        throw new ValidationError("No remaining stops for this day");
+    }
+
+    const last = done[done.length - 1];
+    const origin: Coordinates =
+        last && last.lat !== null && last.lon !== null
+            ? { lat: last.lat, lon: last.lon }
+            : DEPOT;
+
+    const dayOffset = DAY_INDEX[day] * MINUTES_PER_DAY;
+
+    const coords: Coordinates[] = [origin];
+    const orderIds: number[] = [];
+    const meta = new Map<number, { name: string; address: string }>();
+    const locations: solverService.SolverLocation[] = [
+        {
+            index: 0,
+            time_windows: [{ start: 0, end: DAYS.length * MINUTES_PER_DAY }],
+            service_time_min: 0,
+        },
+    ];
+
+    const orders = await ordersRepo.findByWeekWithWindows(week);
+    const ordersById = new Map(orders.map((o) => [o.id, o]));
+
+    for (const stop of remaining) {
+        if (stop.lat === null || stop.lon === null) continue;
+
+        const order = ordersById.get(stop.order_id);
+        if (order === undefined) continue;
+
+        const todayWindows = order.time_windows.filter((w) => w.day === day);
+        if (todayWindows.length === 0) continue;
+
+        const index = coords.length;
+        coords.push({ lat: stop.lat, lon: stop.lon });
+        orderIds[index] = stop.order_id;
+        meta.set(index, { name: stop.client_name, address: stop.address });
+
+        locations.push({
+            index,
+            time_windows: todayWindows.map((w) => ({
+                // Fereastra nu poate incepe inainte de ora curenta
+                start: Math.max(timeToMinutes(w.start_time, day), currentTimeMin + dayOffset),
+                end: timeToMinutes(w.end_time, day),
+            })),
+            service_time_min: SERVICE_TIME,
+        });
+    }
+
+    if (coords.length === 1) {
+        throw new ValidationError("No routable stops remaining");
+    }
+
+    const matrix = await getTravelTimeMatrix(coords);
+
+    const vehicles: solverService.SolverVehicle[] = [
+        {
+            id: DAY_INDEX[day],
+            shift_start: currentTimeMin + dayOffset,
+            shift_end: SHIFT_END + dayOffset,
+            max_stops: 60,
+        },
+    ];
+
+    const solution = await solverService.solve({
+        vehicles,
+        start_location_index: 0,
+        locations,
+        travel_time_matrix: matrix,
+    });
+
+    const routes: PreviewRoute[] = solution.routes.map((r) => ({
+        day,
+        vehicle_index: r.vehicle,
+        total_time_min: r.total_time_min,
+        window_violations: r.window_violations,
+        stops: r.stops.map((s, seq) => {
+            const info = meta.get(s.index);
+            return {
+                order_id: orderIds[s.index]!,
+                client_name: info?.name ?? "",
+                address: info?.address ?? "",
+                lat: coords[s.index]!.lat,
+                lon: coords[s.index]!.lon,
+                sequence: seq,
+                eta_min: s.eta,
+                eta_display: minutesToDayTime(s.eta).time,
+            };
+        }),
+    }));
+
+    return {
+        delivery_week: week,
+        routes,
+        dropped_order_ids: solution.dropped.map((i) => orderIds[i]!),
+        total_time_min: solution.total_time_min,
+    };
+}
+
+export async function commitReroute(
+    week: string,
+    day: DeliveryDay,
+    preview: PreviewResult
+): Promise<void> {
+    const client: PoolClient = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        const routeResult = await client.query<{ id: number }>(
+            `SELECT id FROM routes
+             WHERE delivery_week = $1 AND day = $2 AND status = 'committed'
+             LIMIT 1`,
+            [week, day]
+        );
+        const routeId = routeResult.rows[0]?.id;
+        if (routeId === undefined) {
+            throw new NotFoundError("Committed route", `${week}/${day}`);
+        }
+
+        await client.query(
+            `DELETE FROM route_stops rs
+             USING orders o
+             WHERE rs.order_id = o.id
+               AND rs.route_id = $1
+               AND o.status <> 'delivered'`,
+            [routeId]
+        );
+
+        const maxSeq = await client.query<{ max: number | null }>(
+            "SELECT MAX(sequence) AS max FROM route_stops WHERE route_id = $1",
+            [routeId]
+        );
+        let seq = (maxSeq.rows[0]?.max ?? -1) + 1;
+
+        for (const route of preview.routes) {
+            for (const stop of route.stops) {
+                await client.query(
+                    `INSERT INTO route_stops (route_id, order_id, sequence, eta_min)
+                     VALUES ($1, $2, $3, $4)`,
+                    [routeId, stop.order_id, seq, stop.eta_min]
+                );
+                seq++;
+            }
         }
 
         await client.query("COMMIT");
