@@ -18,8 +18,6 @@ services:
   solver:
     build:
       context: ./solver
-    environment:
-      OSRM_URL: ${OSRM_URL:-}
     ports:
       - "8000:8000"
 
@@ -31,6 +29,33 @@ services:
       - ./solver/osrm-data:/data
     ports:
       - "5000:5000"
+
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://vrptw:vrptw@db:5432/vrptw
+      SOLVER_URL: http://solver:8000
+      OSRM_URL: http://osrm:5000
+      DEPOT_LAT: "45.7489"
+      DEPOT_LON: "21.2087"
+      DEPOT_ADDRESS: "Strada Iris 13, Timisoara"
+      SHIFT_START_MIN: "480"
+      SHIFT_END_MIN: "1200"
+      SERVICE_TIME_MIN: "13"
+    depends_on:
+      - db
+      - solver
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      BACKEND_URL: http://backend:3000
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

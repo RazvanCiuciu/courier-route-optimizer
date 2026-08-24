@@ -267,7 +267,6 @@ export async function rerouteRemaining(
         locations.push({
             index,
             time_windows: todayWindows.map((w) => ({
-                // Fereastra nu poate incepe inainte de ora curenta
                 start: Math.max(timeToMinutes(w.start_time, day), currentTimeMin + dayOffset),
                 end: timeToMinutes(w.end_time, day),
             })),
