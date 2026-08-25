@@ -51,3 +51,9 @@ export const rescheduleSchema = z.object({
 export const deliveryAddressSchema = z.object({
     address: z.string().min(1, "Address is required"),
 });
+
+export const updateClientSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    address: z.string().min(1, "Address is required"),
+    phone_number: z.string().min(1, "Phone number is required"),
+});

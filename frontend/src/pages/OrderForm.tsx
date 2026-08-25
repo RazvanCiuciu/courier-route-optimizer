@@ -31,6 +31,9 @@ export default function OrderForm() {
     const [amount, setAmount] = useState("");
     const [windows, setWindows] = useState<WindowDraft[]>([emptyWindow()]);
 
+    const [addressWarning, setAddressWarning] = useState(false);
+    const [overrideAddress, setOverrideAddress] = useState("");
+
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +44,26 @@ export default function OrderForm() {
                 setError(err instanceof Error ? err.message : "Unknown error")
             );
     }, []);
+
+    async function checkClientAddress(id: number) {
+        const client = clients.find((c) => c.id === id);
+        if (!client) return;
+
+        if (client.lat !== null && client.lon !== null) {
+            setAddressWarning(false);
+            return;
+        }
+
+        try {
+            const result = await api.post<{ found: boolean }>("/clients/check-address", {
+                address: client.address,
+            });
+            setAddressWarning(!result.found);
+            if (!result.found) setOverrideAddress(client.address);
+        } catch {
+            setAddressWarning(false);
+        }
+    }
 
     function addWindow() {
         setWindows((prev) => [...prev, emptyWindow()]);
@@ -92,7 +115,15 @@ export default function OrderForm() {
                     end_time: `${w.end_time}:00`,
                 })),
             };
-            await api.post("/orders", payload);
+
+            const created = await api.post<{ id: number }>("/orders", payload);
+
+            if (addressWarning && overrideAddress.trim() !== "") {
+                await api.patch(`/orders/${created.id}/delivery-address`, {
+                    address: overrideAddress.trim(),
+                });
+            }
+
             navigate("/orders");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error");
@@ -111,19 +142,41 @@ export default function OrderForm() {
                         Client
                         <select
                             value={clientId}
-                            onChange={(e) =>
-                                setClientId(e.target.value === "" ? "" : Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                                const v = e.target.value === "" ? "" : Number(e.target.value);
+                                setClientId(v);
+                                setAddressWarning(false);
+                                if (v !== "") checkClientAddress(v);
+                            }}
                             className="mt-1 rounded border border-slate-300 px-3 py-2 text-slate-900"
                         >
                             <option value="">— select —</option>
                             {clients.map((c) => (
                                 <option key={c.id} value={c.id}>
-                                    {c.name} — {c.address}
+                                    #{c.id} {c.name} — {c.address}
                                 </option>
                             ))}
                         </select>
                     </label>
+
+                    {addressWarning && (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                            <p className="text-sm font-medium text-amber-900">
+                                The client's address could not be located on the map
+                            </p>
+                            <p className="mt-1 text-xs text-amber-800">
+                                Enter a delivery address for this order, or leave it and fix
+                                the client record later.
+                            </p>
+                            <input
+                                type="text"
+                                value={overrideAddress}
+                                onChange={(e) => setOverrideAddress(e.target.value)}
+                                placeholder="e.g. Calea Aradului, Timisoara"
+                                className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+                            />
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap gap-4">
                         <label className="flex flex-col text-sm text-slate-600">

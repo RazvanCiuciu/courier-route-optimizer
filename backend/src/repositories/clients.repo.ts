@@ -30,13 +30,27 @@ export async function updateCoordinates(
     id: number,
     lat: number,
     lon: number
+): Promise<void> {
+    await pool.query(
+        "UPDATE clients SET lat = $2, lon = $3 WHERE id = $1",
+        [id, lat, lon]
+    );
+}
+
+export async function update(
+    id: number,
+    data: { name: string; address: string; phone_number: string }
 ): Promise<Client | null> {
     const result = await pool.query<Client>(
         `UPDATE clients
-         SET lat = $2, lon = $3
+         SET name = $2,
+             address = $3,
+             phone_number = $4,
+             lat = CASE WHEN address <> $3 THEN NULL ELSE lat END,
+             lon = CASE WHEN address <> $3 THEN NULL ELSE lon END
          WHERE id = $1
          RETURNING *`,
-        [id, lat, lon]
+        [id, data.name, data.address, data.phone_number]
     );
     return result.rows[0] ?? null;
 }

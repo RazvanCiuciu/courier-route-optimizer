@@ -4,6 +4,7 @@ import RoutePreview from "./pages/RoutePreview";
 import OrderForm from "./pages/OrderForm";
 import CourierView from "./pages/CourierView";
 import type { ReactNode } from "react";
+import ClientsList from "./pages/ClientsList";
 
 function NavItem({ to, children }: { to: string; children: ReactNode }) {
     return (
@@ -32,6 +33,7 @@ export default function App() {
                         <NavItem to="/ordersNew">New order</NavItem>
                         <NavItem to="/orders">Orders</NavItem>
                         <NavItem to="/routes">Routes</NavItem>
+                        <NavItem to="/clients">Clients</NavItem>
                     </div>
                 </nav>
 
@@ -41,6 +43,7 @@ export default function App() {
                     <Route path="/ordersNew" element={<OrderForm />} />
                     <Route path="/orders" element={<OrdersList />} />
                     <Route path="/routes" element={<RoutePreview />} />
+                    <Route path="/clients" element={<ClientsList />} />
                 </Routes>
             </div>
         </BrowserRouter>

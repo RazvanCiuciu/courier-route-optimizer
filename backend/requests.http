@@ -186,6 +186,15 @@ Content-Type: application/json
 ### opririle zilei
 GET http://localhost:3000/routes/day?week=2026-08-10&day=thursday
 
+### verificare adresa
+POST http://localhost:3000/clients/check-address
+Content-Type: application/json
+
+{ "address": "Strada Harniciei 2, Timisoara" }
+
+###
+POST http://localhost:3000/clients/30/geocode
+
 ### commit
 POST http://localhost:3000/routes/commit
 Content-Type: application/json
