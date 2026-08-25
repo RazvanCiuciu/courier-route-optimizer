@@ -39,6 +39,7 @@ export interface StopWithDetails {
     readonly total_amount: string;
     readonly paid_cash: string;
     readonly paid_transfer: string;
+    readonly client_id: number;
 }
 
 export async function findDayStops(
@@ -47,8 +48,12 @@ export async function findDayStops(
 ): Promise<StopWithDetails[]> {
     const result = await pool.query<StopWithDetails>(
         `SELECT rs.id AS stop_id, rs.order_id, rs.sequence, rs.eta_min,
+                c.id AS client_id,
                 o.status, o.total_amount, o.paid_cash, o.paid_transfer,
-                c.name AS client_name, c.address, c.phone_number, c.lat, c.lon
+                c.name AS client_name, c.phone_number,
+                COALESCE(o.delivery_address, c.address) AS address,
+                COALESCE(o.delivery_lat, c.lat) AS lat,
+                COALESCE(o.delivery_lon, c.lon) AS lon
          FROM route_stops rs
          JOIN routes r  ON r.id = rs.route_id
          JOIN orders o  ON o.id = rs.order_id

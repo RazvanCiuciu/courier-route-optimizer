@@ -1,7 +1,7 @@
 import * as ordersRepo from "../repositories/orders.repo";
 import * as clientsRepo from "../repositories/clients.repo";
 import * as solverService from "./solver.service";
-import { ensureCoordinates, type Coordinates } from "./geocoding.service";
+import { resolveDeliveryCoordinates, type Coordinates } from "./geocoding.service";
 import { getTravelTimeMatrix } from "./osrm.service";
 import { pool } from "../db";
 import { ValidationError, NotFoundError } from "../errors";
@@ -27,9 +27,7 @@ function timeToMinutes(time: string, day: DeliveryDay): number {
     const hours = Number(parts[0]);
     const minutes = Number(parts[1]);
 
-    let result = hours*60 + minutes + DAY_INDEX[day]*MINUTES_PER_DAY;
-  
-    return result;
+    return hours * 60 + minutes + DAY_INDEX[day] * MINUTES_PER_DAY;
 }
 
 function minutesToDayTime(total: number): { day: DeliveryDay; time: string } {
@@ -63,6 +61,7 @@ export interface PreviewResult {
     readonly delivery_week: string;
     readonly routes: PreviewRoute[];
     readonly dropped_order_ids: number[];
+    readonly skipped_order_ids: number[];
     readonly total_time_min: number;
 }
 
@@ -94,12 +93,15 @@ export async function previewRoutes(week: string): Promise<PreviewResult> {
             throw new NotFoundError("Client", order.client_id);
         }
 
-        const c = await ensureCoordinates(client);
+        const c = await resolveDeliveryCoordinates(order, client);
 
         const index = coords.length;
         coords.push(c);
         orderIds[index] = order.id;
-        meta.set(index, { name: client.name, address: client.address });
+        meta.set(index, {
+            name: client.name,
+            address: order.delivery_address ?? client.address,
+        });
 
         locations.push({
             index,
@@ -151,6 +153,7 @@ export async function previewRoutes(week: string): Promise<PreviewResult> {
         delivery_week: week,
         routes,
         dropped_order_ids: solution.dropped.map((i) => orderIds[i]!),
+        skipped_order_ids: [],
         total_time_min: solution.total_time_min,
     };
 }
@@ -220,11 +223,10 @@ export async function rerouteRemaining(
     const stops = await stopsRepo.findDayStops(week, day);
 
     const done = stops.filter((s) => s.status === "delivered");
-    const remaining = stops.filter(
-        (s) => s.status === "assigned" || s.status === "failed_attempt"
-    );
+    const failed = stops.filter((s) => s.status === "failed_attempt");
+    const remaining = stops.filter((s) => s.status === "assigned");
 
-    if (remaining.length === 0) {
+    if (remaining.length === 0 && failed.length === 0) {
         throw new ValidationError("No remaining stops for this day");
     }
 
@@ -235,9 +237,17 @@ export async function rerouteRemaining(
             : DEPOT;
 
     const dayOffset = DAY_INDEX[day] * MINUTES_PER_DAY;
+    const effectiveTime = Math.max(currentTimeMin, SHIFT_START);
+
+    if (effectiveTime >= SHIFT_END) {
+        throw new ValidationError("Working hours have ended for this day");
+    }
+
+    const earliest = effectiveTime + dayOffset;
 
     const coords: Coordinates[] = [origin];
     const orderIds: number[] = [];
+    const skippedOrderIds: number[] = failed.map((s) => s.order_id);
     const meta = new Map<number, { name: string; address: string }>();
     const locations: solverService.SolverLocation[] = [
         {
@@ -251,31 +261,58 @@ export async function rerouteRemaining(
     const ordersById = new Map(orders.map((o) => [o.id, o]));
 
     for (const stop of remaining) {
-        if (stop.lat === null || stop.lon === null) continue;
-
         const order = ordersById.get(stop.order_id);
         if (order === undefined) continue;
 
+        const clientRow = await clientsRepo.findById(order.client_id);
+        if (clientRow === null) continue;
+
+        let stopCoords: Coordinates;
+        try {
+            stopCoords = await resolveDeliveryCoordinates(order, clientRow);
+        } catch {
+            skippedOrderIds.push(stop.order_id);
+            continue;
+        }
+
         const todayWindows = order.time_windows.filter((w) => w.day === day);
-        if (todayWindows.length === 0) continue;
+        if (todayWindows.length === 0) {
+            skippedOrderIds.push(stop.order_id);
+            continue;
+        }
+
+        const usableWindows = todayWindows
+            .map((w) => ({
+                start: Math.max(timeToMinutes(w.start_time, day), earliest),
+                end: timeToMinutes(w.end_time, day),
+            }))
+            .filter((w) => w.start <= w.end);
+
+        if (usableWindows.length === 0) {
+            skippedOrderIds.push(stop.order_id);
+            continue;
+        }
 
         const index = coords.length;
-        coords.push({ lat: stop.lat, lon: stop.lon });
+        coords.push(stopCoords);
         orderIds[index] = stop.order_id;
         meta.set(index, { name: stop.client_name, address: stop.address });
 
         locations.push({
             index,
-            time_windows: todayWindows.map((w) => ({
-                start: Math.max(timeToMinutes(w.start_time, day), currentTimeMin + dayOffset),
-                end: timeToMinutes(w.end_time, day),
-            })),
+            time_windows: usableWindows,
             service_time_min: SERVICE_TIME,
         });
     }
 
     if (coords.length === 1) {
-        throw new ValidationError("No routable stops remaining");
+        return {
+            delivery_week: week,
+            routes: [],
+            dropped_order_ids: [],
+            skipped_order_ids: skippedOrderIds,
+            total_time_min: 0,
+        };
     }
 
     const matrix = await getTravelTimeMatrix(coords);
@@ -283,7 +320,7 @@ export async function rerouteRemaining(
     const vehicles: solverService.SolverVehicle[] = [
         {
             id: DAY_INDEX[day],
-            shift_start: currentTimeMin + dayOffset,
+            shift_start: earliest,
             shift_end: SHIFT_END + dayOffset,
             max_stops: 60,
         },
@@ -320,6 +357,7 @@ export async function rerouteRemaining(
         delivery_week: week,
         routes,
         dropped_order_ids: solution.dropped.map((i) => orderIds[i]!),
+        skipped_order_ids: skippedOrderIds,
         total_time_min: solution.total_time_min,
     };
 }
@@ -368,6 +406,15 @@ export async function commitReroute(
                 );
                 seq++;
             }
+        }
+
+        for (const orderId of preview.skipped_order_ids) {
+            await client.query(
+                `INSERT INTO route_stops (route_id, order_id, sequence, eta_min)
+                 VALUES ($1, $2, $3, NULL)`,
+                [routeId, orderId, seq]
+            );
+            seq++;
         }
 
         await client.query("COMMIT");

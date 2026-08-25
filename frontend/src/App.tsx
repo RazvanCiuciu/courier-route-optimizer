@@ -29,7 +29,7 @@ export default function App() {
                 <nav className="border-b border-slate-200 bg-white">
                     <div className="mx-auto flex max-w-3xl gap-2 px-6 py-3">
                         <NavItem to="/courier">Courier</NavItem>
-                        <NavItem to="/orders/new">New order</NavItem>
+                        <NavItem to="/ordersNew">New order</NavItem>
                         <NavItem to="/orders">Orders</NavItem>
                         <NavItem to="/routes">Routes</NavItem>
                     </div>
@@ -38,7 +38,7 @@ export default function App() {
                 <Routes>
                     <Route path="/" element={<Navigate to="/orders" replace />} />
                     <Route path="/courier" element={<CourierView />} />
-                    <Route path="/orders/new" element={<OrderForm />} />
+                    <Route path="/ordersNew" element={<OrderForm />} />
                     <Route path="/orders" element={<OrdersList />} />
                     <Route path="/routes" element={<RoutePreview />} />
                 </Routes>

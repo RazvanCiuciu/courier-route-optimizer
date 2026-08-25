@@ -157,3 +157,28 @@ export async function replaceTimeWindows(
         client.release();
     }
 }
+
+export async function setDeliveryAddress(
+    id: number,
+    address: string
+): Promise<Order | null> {
+    const result = await pool.query<Order>(
+        `UPDATE orders
+         SET delivery_address = $2, delivery_lat = NULL, delivery_lon = NULL
+         WHERE id = $1
+         RETURNING *`,
+        [id, address]
+    );
+    return result.rows[0] ?? null;
+}
+
+export async function setDeliveryCoordinates(
+    id: number,
+    lat: number,
+    lon: number
+): Promise<void> {
+    await pool.query(
+        "UPDATE orders SET delivery_lat = $2, delivery_lon = $3 WHERE id = $1",
+        [id, lat, lon]
+    );
+}

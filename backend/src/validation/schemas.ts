@@ -47,3 +47,7 @@ export const stopUpdateSchema = z.object({
 export const rescheduleSchema = z.object({
     time_windows: z.array(newTimeWindowSchema).min(1, "At least one time window required"),
 });
+
+export const deliveryAddressSchema = z.object({
+    address: z.string().min(1, "Address is required"),
+});

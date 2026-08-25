@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import TimeInput from "../components/TimeInput";
 import type { Client, DeliveryDay, NewTimeWindow } from "../types/domain";
 
 const DAYS: { value: DeliveryDay; label: string }[] = [
@@ -8,7 +9,6 @@ const DAYS: { value: DeliveryDay; label: string }[] = [
     { value: "friday", label: "Friday" },
 ];
 
-// Local shape: same as NewTimeWindow but mutable, with a stable key for React
 interface WindowDraft {
     key: number;
     day: DeliveryDay;
@@ -19,7 +19,7 @@ interface WindowDraft {
 let nextKey = 1;
 
 function emptyWindow(): WindowDraft {
-    return { key: nextKey++, day: "thursday", start_time: "09:00", end_time: "12:00" };
+    return { key: nextKey++, day: "thursday", start_time: "09:00", end_time: "20:00" };
 }
 
 export default function OrderForm() {
@@ -50,7 +50,6 @@ export default function OrderForm() {
         setWindows((prev) => prev.filter((w) => w.key !== key));
     }
 
-    // Replaces one field of one window, keeping the rest untouched
     function updateWindow(key: number, patch: Partial<Omit<WindowDraft, "key">>) {
         setWindows((prev) =>
             prev.map((w) => (w.key === key ? { ...w, ...patch } : w))
@@ -61,7 +60,11 @@ export default function OrderForm() {
         if (clientId === "") return "Select a client";
         if (!/^\d+(\.\d{1,2})?$/.test(amount)) return "Amount must be a number, e.g. 85.50";
         if (windows.length === 0) return "Add at least one time window";
+        const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
         for (const w of windows) {
+            if (!timeRegex.test(w.start_time) || !timeRegex.test(w.end_time)) {
+                return "Time must be in HH:MM format";
+            }
             if (w.start_time >= w.end_time) {
                 return `Invalid window: ${w.start_time} is not before ${w.end_time}`;
             }
@@ -85,7 +88,6 @@ export default function OrderForm() {
                 total_amount: amount,
                 time_windows: windows.map<NewTimeWindow>((w) => ({
                     day: w.day,
-                    // backend expects HH:MM:SS
                     start_time: `${w.start_time}:00`,
                     end_time: `${w.end_time}:00`,
                 })),
@@ -178,7 +180,7 @@ export default function OrderForm() {
                                                 day: e.target.value as DeliveryDay,
                                             })
                                         }
-                                        className="mt-1 rounded border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+                                        className="mt-1 rounded border border-slate-300 px-2 py-2 text-sm text-slate-900"
                                     >
                                         {DAYS.map((d) => (
                                             <option key={d.value} value={d.value}>
@@ -190,25 +192,17 @@ export default function OrderForm() {
 
                                 <label className="flex flex-col text-xs text-slate-500">
                                     From
-                                    <input
-                                        type="time"
+                                    <TimeInput
                                         value={w.start_time}
-                                        onChange={(e) =>
-                                            updateWindow(w.key, { start_time: e.target.value })
-                                        }
-                                        className="mt-1 rounded border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+                                        onChange={(v) => updateWindow(w.key, { start_time: v })}
                                     />
                                 </label>
 
                                 <label className="flex flex-col text-xs text-slate-500">
                                     To
-                                    <input
-                                        type="time"
+                                    <TimeInput
                                         value={w.end_time}
-                                        onChange={(e) =>
-                                            updateWindow(w.key, { end_time: e.target.value })
-                                        }
-                                        className="mt-1 rounded border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+                                        onChange={(v) => updateWindow(w.key, { end_time: v })}
                                     />
                                 </label>
 

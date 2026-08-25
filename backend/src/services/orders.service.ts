@@ -130,3 +130,15 @@ export async function rescheduleOrder(
 
     return { ...updated!, time_windows: newWindows };
 }
+
+export async function changeDeliveryAddress(
+    id: number,
+    address: string
+): Promise<Order> {
+    const order = await getOrderById(id);
+    if (order.status === "delivered") {
+        throw new ConflictError("Cannot change address of a delivered order");
+    }
+    const updated = await ordersRepo.setDeliveryAddress(id, address);
+    return updated!;
+}

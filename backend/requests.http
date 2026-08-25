@@ -177,6 +177,15 @@ Content-Type: application/json
   ]
 }
 
+###
+PATCH http://localhost:3000/orders/45/delivery-address
+Content-Type: application/json
+
+{ "address": "Calea Aradului, Timisoara" }
+
+### opririle zilei
+GET http://localhost:3000/routes/day?week=2026-08-10&day=thursday
+
 ### commit
 POST http://localhost:3000/routes/commit
 Content-Type: application/json

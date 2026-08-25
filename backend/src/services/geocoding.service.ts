@@ -1,6 +1,8 @@
 import { ValidationError } from "../errors";
 import * as clientsRepo from "../repositories/clients.repo";
 import type { Client } from "../types/domain";
+import type { Order } from "../types/domain";
+import * as ordersRepo from "../repositories/orders.repo";
 
 const NOMINATIM_URL = process.env.NOMINATIM_URL ?? "https://nominatim.openstreetmap.org";
 
@@ -63,4 +65,19 @@ export async function ensureCoordinates(client: Client): Promise<Coordinates>{
     await clientsRepo.updateCoordinates(client.id, coords.lat, coords.lon);
     return coords;
 
+}
+
+export async function resolveDeliveryCoordinates(
+    order: Order,
+    client: Client
+): Promise<Coordinates> {
+    if (order.delivery_address !== null) {
+        if (order.delivery_lat !== null && order.delivery_lon !== null) {
+            return { lat: order.delivery_lat, lon: order.delivery_lon };
+        }
+        const coords = await geocode(order.delivery_address);
+        await ordersRepo.setDeliveryCoordinates(order.id, coords.lat, coords.lon);
+        return coords;
+    }
+    return ensureCoordinates(client);
 }

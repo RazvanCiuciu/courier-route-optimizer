@@ -26,7 +26,10 @@ export interface Order {
     readonly delivery_week: string;
     readonly status: OrderStatus;
     readonly drop_reason: string | null;
-    readonly total_amount: string;      // NUMERIC → string din pg, ca să nu piardă precizie
+    readonly total_amount: string;   
+    readonly delivery_address: string | null;
+    readonly delivery_lat: number | null;
+    readonly delivery_lon: number | null; 
     readonly paid_cash: string;
     readonly paid_transfer: string;
 }

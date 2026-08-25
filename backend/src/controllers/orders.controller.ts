@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as ordersService from "../services/orders.service";
-import {newOrderSchema, changeStatusSchema, assignDaySchema, paymentSchema} from "../validation/schemas";
+import {newOrderSchema, changeStatusSchema, assignDaySchema, paymentSchema, deliveryAddressSchema} from "../validation/schemas";
 
 const weekSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
 const idSchema = z.coerce.number().int().positive();
@@ -76,6 +76,17 @@ export async function reschedule(req: Request, res: Response, next: NextFunction
         const id = idSchema.parse(req.params.id);
         const { time_windows } = rescheduleSchema.parse(req.body);
         const order = await ordersService.rescheduleOrder(id, time_windows);
+        res.json(order);
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function changeDeliveryAddress(req: Request, res: Response, next: NextFunction) {
+    try {
+        const id = idSchema.parse(req.params.id);
+        const { address } = deliveryAddressSchema.parse(req.body);
+        const order = await ordersService.changeDeliveryAddress(id, address);
         res.json(order);
     } catch (err) {
         next(err);
