@@ -122,6 +122,13 @@ export async function previewRoutes(week: string): Promise<PreviewResult> {
         max_stops: 60,
     }));
 
+    console.log("PAYLOAD:", JSON.stringify({
+    vehicles,
+    start_location_index: 0,
+    locations,
+    travel_time_matrix: matrix,
+    }));
+
     const solution = await solverService.solve({
         vehicles,
         start_location_index: 0,
@@ -424,4 +431,100 @@ export async function commitReroute(
     } finally {
         client.release();
     }
+}
+
+export async function compareMethods(week: string, day: DeliveryDay) {
+    const orders = await ordersRepo.findByWeekWithWindows(week);
+    const dayOrders = orders.filter((o) =>
+        o.time_windows.some((w) => w.day === day)
+    );
+
+    if (dayOrders.length === 0) {
+        throw new ValidationError(`No orders for ${week} / ${day}`);
+    }
+
+    const dayOffset = DAY_INDEX[day] * MINUTES_PER_DAY;
+    const coords: Coordinates[] = [DEPOT];
+    const orderIds: (number | null)[] = [null];
+    const labels: string[] = ["DEPOT"];
+    const windows: { start: number; end: number }[][] = [[]];
+
+    const locations: solverService.SolverLocation[] = [
+        {
+            index: 0,
+            time_windows: [{ start: 0, end: DAYS.length * MINUTES_PER_DAY }],
+            service_time_min: 0,
+        },
+    ];
+
+    for (const order of dayOrders) {
+        const client = await clientsRepo.findById(order.client_id);
+        if (client === null) continue;
+
+        const c = await resolveDeliveryCoordinates(order, client);
+        const index = coords.length;
+        coords.push(c);
+        orderIds.push(order.id);
+        labels.push(client.name);
+
+        const dayWindows = order.time_windows
+            .filter((w) => w.day === day)
+            .map((w) => ({
+                start: timeToMinutes(w.start_time, day),
+                end: timeToMinutes(w.end_time, day),
+            }));
+
+        windows.push(dayWindows);
+
+        locations.push({
+            index,
+            time_windows: dayWindows,
+            service_time_min: SERVICE_TIME,
+        });
+    }
+
+    const matrix = await getTravelTimeMatrix(coords);
+
+    const payload = {
+        vehicles: [
+            {
+                id: 0,
+                shift_start: SHIFT_START + dayOffset,
+                shift_end: SHIFT_END + dayOffset,
+                max_stops: 100,
+            },
+        ],
+        start_location_index: 0,
+        locations,
+        travel_time_matrix: matrix,
+    };
+
+    const solverUrl = process.env.SOLVER_URL ?? "http://localhost:8000";
+    const response = await fetch(`${solverUrl}/compare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Solver /compare returned ${response.status}: ${text}`);
+    }
+
+    const result = await response.json() as { results: unknown[]; dropped_ortools: number[] };
+
+    return {
+        week,
+        day,
+        instance: {
+            locations: coords.length - 1,
+            service_time_min: SERVICE_TIME,
+            shift: { start: SHIFT_START + dayOffset, end: SHIFT_END + dayOffset },
+        },
+        coords,
+        order_ids: orderIds,
+        labels,
+        windows,
+        ...result,
+    };
 }

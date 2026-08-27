@@ -52,3 +52,14 @@ export async function reroute(req: Request, res: Response, next: NextFunction) {
         next(err);
     }
 }
+
+export async function compare(req: Request, res: Response, next: NextFunction) {
+    try {
+        const week = weekSchema.parse(req.query.week);
+        const day = daySchema.parse(req.query.day);
+        const result = await routingService.compareMethods(week, day);
+        res.json(result);
+    } catch (err) {
+        next(err);
+    }
+}

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from ortools.constraint_solver import routing_enums_pb2, pywrapcp
+from heuristics import (nearest_neighbor_tw, two_opt_tw, manual_order,
+                        route_duration, count_violations)
 
 app = FastAPI()
 
@@ -184,24 +186,70 @@ def solve_with_ortools(request: SolveRequest):
 
     return orders, dropped
 
-@app.post("/solve")
-def solve(request: SolveRequest):
-    orders, dropped = solve_with_ortools(request)
+@app.post("/compare")
+def compare(request: SolveRequest):
+    import time
 
-    routes = []
-    total_all = 0
-    for vehicle, order in zip(request.vehicles, orders):
-        stops, total, violations = compute_route(order, request, vehicle.shift_start)
-        routes.append({
-            "vehicle": vehicle.id,
-            "stops": stops,
-            "total_time_min": total,
-            "window_violations": violations
-        })
-        total_all += total
+    depot = request.start_location_index
+    matrix = request.travel_time_matrix
+    clients = [loc.index for loc in request.locations if loc.index != depot]
+    shift_start = request.vehicles[0].shift_start
 
-    return {
-        "routes": routes,
-        "dropped": dropped,
-        "total_time_min": total_all
+    windows_by_node = {
+        loc.index: [(w.start, w.end) for w in loc.time_windows]
+        for loc in request.locations
     }
+    service_by_node = {
+        loc.index: loc.service_time_min for loc in request.locations
+    }
+    service = service_by_node[clients[0]] if clients else 0
+
+    results = []
+
+    t0 = time.perf_counter()
+    order_manual = manual_order(clients)
+    t_manual = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    order_nn = nearest_neighbor_tw(matrix, depot, clients, windows_by_node,
+                                   service, shift_start)
+    t_nn = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    order_2opt = two_opt_tw(order_nn, matrix, depot, windows_by_node,
+                            service, shift_start)
+    t_2opt = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    orders_ortools, dropped = solve_with_ortools(request)
+    t_ortools = (time.perf_counter() - t0) * 1000
+    order_ortools = orders_ortools[0] if orders_ortools else []
+
+    for name, order, elapsed in [
+        ("manual", order_manual, t_manual),
+        ("nn_tw", order_nn, t_nn),
+        ("nn_2opt_tw", order_2opt, t_2opt),
+        ("ortools", order_ortools, t_ortools),
+    ]:
+        stops, total, violations = compute_route(order, request, shift_start)
+
+        drive = sum(
+            matrix[a][b]
+            for a, b in zip([depot] + order, order + [depot])
+        )
+        service_total = sum(service_by_node[n] for n in order)
+
+        results.append({
+            "method": name,
+            "order": order,
+            "stops_detail": stops,
+            "stops": len(order),
+            "total_time_min": total,
+            "drive_time_min": drive,
+            "service_time_min": service_total,
+            "wait_time_min": max(0, total - drive - service_total),
+            "window_violations": violations,
+            "compute_time_ms": round(elapsed, 2),
+        })
+
+    return {"results": results, "dropped_ortools": dropped}

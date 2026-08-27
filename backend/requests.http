@@ -195,6 +195,24 @@ Content-Type: application/json
 ###
 POST http://localhost:3000/clients/30/geocode
 
+###
+POST http://localhost:3000/routes/preview
+Content-Type: application/json
+
+{ "delivery_week": "2026-09-10" }
+
+### comparatie - instanta uniforma
+GET http://localhost:3000/routes/compare?week=2026-09-10&day=thursday
+
+### comparatie - instanta aglomerata
+GET http://localhost:3000/routes/compare?week=2026-09-17&day=thursday
+
+### comparatie metode
+POST http://localhost:8000/compare
+Content-Type: application/json
+
+{ ...JSON-ul modificat... }
+
 ### commit
 POST http://localhost:3000/routes/commit
 Content-Type: application/json
