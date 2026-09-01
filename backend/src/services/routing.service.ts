@@ -497,6 +497,7 @@ export async function compareMethods(week: string, day: DeliveryDay) {
         start_location_index: 0,
         locations,
         travel_time_matrix: matrix,
+        coords,
     };
 
     const solverUrl = process.env.SOLVER_URL ?? "http://localhost:8000";

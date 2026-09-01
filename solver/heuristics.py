@@ -91,5 +91,19 @@ def two_opt_tw(order, matrix, depot, windows, service_time, shift_start,
     return best
 
 
-def manual_order(clients):
-    return list(clients)
+def manual_order(clients, coords=None):
+    if coords is None:
+        return list(clients)
+
+    def zone_key(n):
+        return (round(coords[n]["lat"], 2), round(coords[n]["lon"], 2))
+
+    zones = {}
+    for n in clients:
+        zones.setdefault(zone_key(n), []).append(n)
+
+    order = []
+    for key in sorted(zones.keys()):
+        order.extend(zones[key])
+
+    return order

@@ -26,10 +26,11 @@ class SolveRequest(BaseModel):
     start_location_index: int
     locations: list[Location]
     travel_time_matrix: list[list[int]]
+    coords: list[dict] | None = None
 
 def compute_route(order: list[int], request: SolveRequest, shift_start: int):
     matrix = request.travel_time_matrix
-    locations_by_index = {loc.index: loc for loc in request.locations} #locations_by_index = {0: <Location index=0, service=0, windows=...>, ...
+    locations_by_index = {loc.index: loc for loc in request.locations} 
 
     current_time = shift_start
     current_pos = request.start_location_index
@@ -136,7 +137,7 @@ def solve_with_ortools(request: SolveRequest):
         idx = manager.NodeToIndex(node_idx)
         time_dim.CumulVar(idx).SetRange(window[0], window[1])
 
-    # Capacitate: fiecare oprire consuma 1 unitate; depotul 0
+
     def demand_callback(from_index):
         node = manager.IndexToNode(from_index)
         return 0 if node == depot else 1
@@ -185,6 +186,29 @@ def solve_with_ortools(request: SolveRequest):
     dropped = [c for c in all_clients if c not in visited]
 
     return orders, dropped
+    
+@app.post("/solve")
+def solve(request: SolveRequest):
+    orders, dropped = solve_with_ortools(request)
+
+    routes = []
+    total_all = 0
+    for vehicle, order in zip(request.vehicles, orders):
+        stops, total, violations = compute_route(order, request, vehicle.shift_start)
+        routes.append({
+            "vehicle": vehicle.id,
+            "stops": stops,
+            "total_time_min": total,
+            "window_violations": violations
+        })
+        total_all += total
+
+    return {
+        "routes": routes,
+        "dropped": dropped,
+        "total_time_min": total_all
+    }
+
 
 @app.post("/compare")
 def compare(request: SolveRequest):
@@ -207,7 +231,7 @@ def compare(request: SolveRequest):
     results = []
 
     t0 = time.perf_counter()
-    order_manual = manual_order(clients)
+    order_manual = manual_order(clients, request.coords)
     t_manual = (time.perf_counter() - t0) * 1000
 
     t0 = time.perf_counter()
