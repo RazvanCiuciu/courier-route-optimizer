@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Client, Order, TimeWindow, OrderStatus } from "../types/domain";
+import { currentWeekStart } from "../utils/dates";
+
 
 interface OrderWithWindows extends Order {
     time_windows: TimeWindow[];
@@ -25,7 +27,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 const DAY_LABEL: Record<string, string> = { thursday: "Thursday", friday: "Friday" };
 
 export default function OrdersList() {
-    const [week, setWeek] = useState("2026-08-10");
+    const [week, setWeek] = useState(currentWeekStart());
     const [orders, setOrders] = useState<OrderWithWindows[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);

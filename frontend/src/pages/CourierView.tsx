@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import TimeSelect from "../components/TimeSelect";
 import type { DeliveryDay, OrderStatus } from "../types/domain";
+import { currentWeekStart } from "../utils/dates";
+
 
 interface DayStop {
     stop_id: number;
@@ -48,7 +50,7 @@ function nowHHMM(): string {
 }
 
 export default function CourierView() {
-    const [week, setWeek] = useState("2026-08-10");
+    const [week, setWeek] = useState(currentWeekStart());
     const [day, setDay] = useState<DeliveryDay>("thursday");
     const [stops, setStops] = useState<DayStop[]>([]);
     const [showList, setShowList] = useState(false);
@@ -84,6 +86,14 @@ export default function CourierView() {
     const current = stops.find((s) => s.status === "assigned");
     const pendingFailed = stops.filter((s) => s.status === "failed_attempt");
     const doneCount = stops.filter((s) => s.status === "delivered").length;
+
+    const totalCash = stops
+    .filter((s) => s.status === "delivered")
+    .reduce((sum, s) => sum + Number(s.paid_cash), 0);
+
+    const totalTransfer = stops
+    .filter((s) => s.status === "delivered")
+    .reduce((sum, s) => sum + Number(s.paid_transfer), 0);
 
     const orderedStops = [
         ...stops.filter((s) => s.status !== "failed_attempt"),
@@ -591,10 +601,39 @@ export default function CourierView() {
                 )}
 
                 {!showList && !current && pendingFailed.length === 0 && stops.length > 0 && (
-                    <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-                        <p className="text-lg font-semibold text-emerald-900">
+                    <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+                        <p className="text-center text-lg font-semibold text-emerald-900">
                             All stops completed
                         </p>
+
+                        <div className="mt-4 border-t border-emerald-200 pt-4">
+                            <p className="text-sm font-medium text-emerald-900">Day closing</p>
+
+                            <div className="mt-2 flex justify-between text-sm">
+                                <span className="text-slate-700">Cash collected</span>
+                                <span className="font-mono font-semibold text-slate-900">
+                                    {totalCash.toFixed(2)} RON
+                                </span>
+                            </div>
+
+                            <div className="mt-1 flex justify-between text-sm">
+                                <span className="text-slate-700">Bank transfer</span>
+                                <span className="font-mono font-semibold text-slate-900">
+                                    {totalTransfer.toFixed(2)} RON
+                                </span>
+                            </div>
+
+                            <div className="mt-2 flex justify-between border-t border-emerald-200 pt-2 text-sm">
+                                <span className="font-medium text-slate-900">Total</span>
+                                <span className="font-mono font-bold text-slate-900">
+                                    {(totalCash + totalTransfer).toFixed(2)} RON
+                                </span>
+                            </div>
+
+                            <p className="mt-3 text-xs text-slate-600">
+                                {doneCount} deliveries completed
+                            </p>
+                        </div>
                     </div>
                 )}
 

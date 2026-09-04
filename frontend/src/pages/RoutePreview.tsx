@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import type { PreviewResult } from "../types/domain";
+import { currentWeekStart } from "../utils/dates";
+
+
 
 const DAY_LABEL: Record<string, string> = {
     thursday: "Thursday",
@@ -8,7 +11,7 @@ const DAY_LABEL: Record<string, string> = {
 };
 
 export default function RoutePreview() {
-    const [week, setWeek] = useState("2026-08-10");
+    const [week, setWeek] = useState(currentWeekStart());
     const [result, setResult] = useState<PreviewResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

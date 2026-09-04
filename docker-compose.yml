@@ -43,7 +43,7 @@ services:
       DEPOT_ADDRESS: "Strada Iris 13, Timisoara"
       SHIFT_START_MIN: "480"
       SHIFT_END_MIN: "1200"
-      SERVICE_TIME_MIN: "13"
+      SERVICE_TIME_MIN: "5"
     depends_on:
       - db
       - solver

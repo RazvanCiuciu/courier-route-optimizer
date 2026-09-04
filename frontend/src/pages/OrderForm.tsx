@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import TimeInput from "../components/TimeInput";
 import type { Client, DeliveryDay, NewTimeWindow } from "../types/domain";
+import { currentWeekStart } from "../utils/dates";
+
 
 const DAYS: { value: DeliveryDay; label: string }[] = [
     { value: "thursday", label: "Thursday" },
@@ -27,7 +29,7 @@ export default function OrderForm() {
 
     const [clients, setClients] = useState<Client[]>([]);
     const [clientId, setClientId] = useState<number | "">("");
-    const [week, setWeek] = useState("2026-08-10");
+    const [week, setWeek] = useState(currentWeekStart());
     const [amount, setAmount] = useState("");
     const [windows, setWindows] = useState<WindowDraft[]>([emptyWindow()]);
 
