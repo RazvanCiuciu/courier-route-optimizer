@@ -8,6 +8,14 @@ de timp multiple per client si rerutare in timp real.
 Proiect realizat in cadrul lucrarii de licenta, Universitatea Politehnica
 Timisoara.
 
+## Repository
+
+Cod sursa complet:
+https://github.com/RazvanCiuciu/courier-route-optimizer
+
+Repository-ul nu contine binare compilate, dependinte instalate
+(`node_modules`, `.venv`) sau date de harta preprocesate.
+
 ## Ce face aplicatia
 
 - genereaza rute optimizate pentru doua zile de livrare (joi si vineri),
@@ -33,9 +41,28 @@ Interfata (React)  -->  Backend (Node.js + Express)  -->  Solver (Python + OR-To
 
 Detalii complete in `docs/backend.md` si in capitolul 4 al documentatiei.
 
-## Rulare
+## Cerinte prealabile
 
-Necesita Docker si Docker Compose instalate.
+- Docker si Docker Compose
+- optional, pentru dezvoltare locala: Node.js 20+, Python 3.12
+
+## Compilare
+
+Imaginile se construiesc automat la prima pornire:
+
+```bash
+docker compose build
+```
+
+Pentru compilarea separata a componentelor, in afara containerelor:
+
+```bash
+cd backend && npm install && npm run build
+cd frontend && npm install && npm run build
+cd solver && python -m venv .venv && pip install -r requirements.txt
+```
+
+## Instalare si lansare
 
 ```bash
 git clone https://github.com/RazvanCiuciu/courier-route-optimizer.git
@@ -75,7 +102,7 @@ Restul serviciilor (baza de date, solver, OSRM) raman in containere.
 ## Structura repository-ului
 
 ```
-solver/          solver VRPTW (Python + OR-Tools)
+solver/           solver VRPTW (Python + OR-Tools)
 backend/          API REST (Node.js + TypeScript + Express)
 frontend/         interfata (React + Vite + Tailwind)
 db/               schema PostgreSQL
@@ -99,9 +126,10 @@ instantele de test si figurile.
 
 ## Stadiu
 
-Aplicatie functionala, testata pe date generate si pe un set restrans de
-date reale. Urmeaza testarea in productie, in cadrul serviciului de livrari
-pentru care a fost proiectata.
+Aplicatie functionala, evaluata pe instante generate care reproduc zonele
+reale de livrare si proportia observata de comenzi cu ferestre multiple.
+Urmeaza testarea in productie, in cadrul serviciului de livrari pentru care
+a fost proiectata.
 
 ## Autor
 

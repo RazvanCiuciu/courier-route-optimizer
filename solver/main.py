@@ -144,11 +144,7 @@ def solve_with_ortools(request: SolveRequest):
 
     demand_idx = routing.RegisterUnaryTransitCallback(demand_callback)
     routing.AddDimensionWithVehicleCapacity(
-        demand_idx,
-        0,                                          
-        [v.max_stops for v in request.vehicles],    
-        True,                                      
-        "Count"
+        demand_idx, 0, [v.max_stops for v in request.vehicles], True, "Count"
     )
 
     for group in twin_groups:

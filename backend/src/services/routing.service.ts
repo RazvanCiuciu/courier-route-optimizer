@@ -16,7 +16,7 @@ const DEPOT: Coordinates = {
 
 const SHIFT_START = Number(process.env.SHIFT_START_MIN ?? 480);
 const SHIFT_END = Number(process.env.SHIFT_END_MIN ?? 1080);
-const SERVICE_TIME = Number(process.env.SERVICE_TIME_MIN ?? 13);
+const SERVICE_TIME = Number(process.env.SERVICE_TIME_MIN ?? 5);
 
 const MINUTES_PER_DAY = 1440;
 const DAY_INDEX: Record<DeliveryDay, number> = { thursday: 0, friday: 1 };
@@ -120,13 +120,6 @@ export async function previewRoutes(week: string): Promise<PreviewResult> {
         shift_start: SHIFT_START + DAY_INDEX[day] * MINUTES_PER_DAY,
         shift_end: SHIFT_END + DAY_INDEX[day] * MINUTES_PER_DAY,
         max_stops: 60,
-    }));
-
-    console.log("PAYLOAD:", JSON.stringify({
-    vehicles,
-    start_location_index: 0,
-    locations,
-    travel_time_matrix: matrix,
     }));
 
     const solution = await solverService.solve({
